@@ -2,7 +2,9 @@ package com.mycorp;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -10,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -80,8 +81,17 @@ public class ZendeskService {
     @Qualifier( "emailService" )
     MensajeriaService emailService;
 
+	private static final Map<Integer, String> TIPOS_CLIENTE;
+	static {
+		Map<Integer, String> tiposCliente = new HashMap<Integer, String>();
+		tiposCliente.put(Integer.valueOf(1), "POTENCIAL");
+		tiposCliente.put(Integer.valueOf(2), "REAL");
+		tiposCliente.put(Integer.valueOf(3), "PROSPECTO");
+		TIPOS_CLIENTE = tiposCliente;
+	}
+
     /**
-     * Crea un ticket en Zendesk. Si se ha informado el nÂº de tarjeta, obtiene los datos asociados a dicha tarjeta de un servicio externo.
+     * Crea un ticket en Zendesk. Si se ha informado el nº de tarjeta, obtiene los datos asociados a dicha tarjeta de un servicio externo.
      * @param usuarioAlta
      * @param userAgent
      */
@@ -98,16 +108,16 @@ public class ZendeskService {
         StringBuilder clientName = new StringBuilder();
 
 
-        // AÃ±ade los datos del formulario
+        // Añade los datos del formulario
         if(StringUtils.isNotBlank(usuarioAlta.getNumPoliza())){
-            datosUsuario.append("NÂº de poliza/colectivo: ").append(usuarioAlta.getNumPoliza()).append("/").append(usuarioAlta.getNumDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
+            datosUsuario.append("Nº de poliza/colectivo: ").append(usuarioAlta.getNumPoliza()).append("/").append(usuarioAlta.getNumDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
         }else{
-            datosUsuario.append("NÂº tarjeta Sanitas o Identificador: ").append(usuarioAlta.getNumTarjeta()).append(ESCAPED_LINE_SEPARATOR);
+            datosUsuario.append("Nº tarjeta Sanitas o Identificador: ").append(usuarioAlta.getNumTarjeta()).append(ESCAPED_LINE_SEPARATOR);
         }
         datosUsuario.append("Tipo documento: ").append(usuarioAlta.getTipoDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
-        datosUsuario.append("NÂº documento: ").append(usuarioAlta.getNumDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
+        datosUsuario.append("Nº documento: ").append(usuarioAlta.getNumDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
         datosUsuario.append("Email personal: ").append(usuarioAlta.getEmail()).append(ESCAPED_LINE_SEPARATOR);
-        datosUsuario.append("NÂº mÃ³vil: ").append(usuarioAlta.getNumeroTelefono()).append(ESCAPED_LINE_SEPARATOR);
+        datosUsuario.append("Nº móvil: ").append(usuarioAlta.getNumeroTelefono()).append(ESCAPED_LINE_SEPARATOR);
         datosUsuario.append("User Agent: ").append(userAgent).append(ESCAPED_LINE_SEPARATOR);
 
         datosBravo.append(ESCAPED_LINE_SEPARATOR + "Datos recuperados de BRAVO:" + ESCAPED_LINE_SEPARATOR + ESCAPED_LINE_SEPARATOR);
@@ -159,7 +169,7 @@ public class ZendeskService {
             // Obtenemos los datos del cliente
             DatosCliente cliente = restTemplate.getForObject("http://localhost:8080/test-endpoint", DatosCliente.class, idCliente);
 
-            datosBravo.append("TelÃ©fono: ").append(cliente.getGenTGrupoTmk()).append(ESCAPED_LINE_SEPARATOR);
+            datosBravo.append("Teléfono: ").append(cliente.getGenTGrupoTmk()).append(ESCAPED_LINE_SEPARATOR);
 
 
             datosBravo.append("Feha de nacimiento: ").append(formatter.format(formatter.parse(cliente.getFechaNacimiento()))).append(ESCAPED_LINE_SEPARATOR);
@@ -172,26 +182,18 @@ public class ZendeskService {
                     datosBravo.append("Tipo de documento: ").append(tiposDocumentos.get(i).getValue()).append(ESCAPED_LINE_SEPARATOR);
                 }
             }
-            datosBravo.append("NÃºmero documento: ").append(cliente.getNumeroDocAcred()).append(ESCAPED_LINE_SEPARATOR);
+            datosBravo.append("Número documento: ").append(cliente.getNumeroDocAcred()).append(ESCAPED_LINE_SEPARATOR);
 
             datosBravo.append("Tipo cliente: ");
-            switch (cliente.getGenTTipoCliente()) {
-            case 1:
-                datosBravo.append("POTENCIAL").append(ESCAPED_LINE_SEPARATOR);
-                break;
-            case 2:
-                datosBravo.append("REAL").append(ESCAPED_LINE_SEPARATOR);
-                break;
-            case 3:
-                datosBravo.append("PROSPECTO").append(ESCAPED_LINE_SEPARATOR);
-                break;
-            }
+			if (TIPOS_CLIENTE.containsKey(cliente.getGenTTipoCliente())) {
+				datosBravo.append(TIPOS_CLIENTE.get(cliente.getGenTTipoCliente())).append(ESCAPED_LINE_SEPARATOR);
+			}
 
             datosBravo.append("ID estado del cliente: ").append(cliente.getGenTStatus()).append(ESCAPED_LINE_SEPARATOR);
 
             datosBravo.append("ID motivo de alta cliente: ").append(cliente.getIdMotivoAlta()).append(ESCAPED_LINE_SEPARATOR);
 
-            datosBravo.append("Registrado: ").append((cliente.getfInactivoWeb() == null ? "SÃ­" : "No")).append(ESCAPED_LINE_SEPARATOR + ESCAPED_LINE_SEPARATOR);
+            datosBravo.append("Registrado: ").append((cliente.getfInactivoWeb() == null ? "Sí" : "No")).append(ESCAPED_LINE_SEPARATOR + ESCAPED_LINE_SEPARATOR);
 
 
         }catch(Exception e)
@@ -203,7 +205,7 @@ public class ZendeskService {
                 parseJsonBravo(datosServicio));
         ticket = ticket.replaceAll("["+ESCAPED_LINE_SEPARATOR+"]", " ");
 
-        try(Zendesk zendesk = new Zendesk.Builder(URL_ZENDESK).setUsername(ZENDESK_USER).setToken(TOKEN_ZENDESK).build()){
+        try(Zendesk zendesk = newZendesk()){
             //Ticket
             Ticket petiZendesk = mapper.readValue(ticket, Ticket.class);
             zendesk.createTicket(petiZendesk);
@@ -230,12 +232,21 @@ public class ZendeskService {
         return datosUsuario.toString();
     }
 
+	/**
+	 * Método factoría para encapsular la creación del Zendesk
+	 * 
+	 * @return Zendesk configurado
+	 */
+	protected Zendesk newZendesk() {
+		return new Zendesk.Builder(URL_ZENDESK).setUsername(ZENDESK_USER).setToken(TOKEN_ZENDESK).build();
+	}
+
     public List< ValueCode > getTiposDocumentosRegistro() {
         return Arrays.asList( new ValueCode(), new ValueCode() ); // simulacion servicio externo
     }
 
     /**
-     * MÃ©todo para parsear el JSON de respuesta de los servicios de tarjeta/pÃ³liza
+     * Método para parsear el JSON de respuesta de los servicios de tarjeta/póliza
      *
      * @param resBravo
      * @return
