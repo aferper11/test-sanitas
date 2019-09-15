@@ -64,9 +64,6 @@ public class ZendeskService {
     @Value("#{envPC['zendesk.error.destinatario']}")
     public String ZENDESK_ERROR_DESTINATARIO = "";
 
-    private SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-
-
     /** The portalclientes web ejb remote. */
     @Autowired
     // @Qualifier("portalclientesWebEJB")
@@ -101,9 +98,11 @@ public class ZendeskService {
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
+
         String idCliente = null;
 
         StringBuilder clientName = new StringBuilder();
+
 
         // Añade los datos del formulario
         String datosUsuario = getDatosUsuario(usuarioAlta, userAgent);
@@ -112,7 +111,8 @@ public class ZendeskService {
         // Obtiene el idCliente de la tarjeta
         if(StringUtils.isNotBlank(usuarioAlta.getNumTarjeta())){
             try{
-                ResponseEntity<String> res = restTemplate.getForEntity(TARJETAS_GETDATOS + usuarioAlta.getNumTarjeta(), String.class);
+                String urlToRead = TARJETAS_GETDATOS + usuarioAlta.getNumTarjeta();
+                ResponseEntity<String> res = restTemplate.getForEntity( urlToRead, String.class);
                 if(res.getStatusCode() == HttpStatus.OK){
                     String dusuario = res.getBody();
                     clientName.append(dusuario);
@@ -181,7 +181,8 @@ public class ZendeskService {
         return datosUsuario + datosBravo;
     }
 
-    /**
+	protected String getDatosUsuario(UsuarioAlta usuarioAlta, String userAgent) {
+        StringBuilder    /**
      * Método para obtener los datos del usuario
      * 
      * @param usuarioAlta {@link UsuarioAlta} obj usuario
@@ -189,8 +190,7 @@ public class ZendeskService {
      * 
      * @return {@link String} datos del usuario
      */
-	protected String getDatosUsuario(UsuarioAlta usuarioAlta, String userAgent) {
-        StringBuilder datosUsuario = new StringBuilder();
+ datosUsuario = new StringBuilder();
         if(StringUtils.isNotBlank(usuarioAlta.getNumPoliza())){
             datosUsuario.append("Nº de poliza/colectivo: ").append(usuarioAlta.getNumPoliza()).append("/").append(usuarioAlta.getNumDocAcreditativo()).append(ESCAPED_LINE_SEPARATOR);
         }else{
@@ -201,7 +201,6 @@ public class ZendeskService {
         datosUsuario.append("Email personal: ").append(usuarioAlta.getEmail()).append(ESCAPED_LINE_SEPARATOR);
         datosUsuario.append("Nº móvil: ").append(usuarioAlta.getNumeroTelefono()).append(ESCAPED_LINE_SEPARATOR);
         datosUsuario.append("User Agent: ").append(userAgent).append(ESCAPED_LINE_SEPARATOR);
-        
         return datosUsuario.toString();
 	}
 
@@ -222,8 +221,10 @@ public class ZendeskService {
 
             datosBravo.append("Teléfono: ").append(cliente.getGenTGrupoTmk()).append(ESCAPED_LINE_SEPARATOR);
 
-
-            datosBravo.append("Feha de nacimiento: ").append(formatter.format(formatter.parse(cliente.getFechaNacimiento()))).append(ESCAPED_LINE_SEPARATOR);
+			SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+			String fechaNacimiento = cliente.getFechaNacimiento();
+			fechaNacimiento = formatter.format(formatter.parse(fechaNacimiento)); // TODO considerar si esta linea sobra
+            datosBravo.append("Feha de nacimiento: ").append(fechaNacimiento).append(ESCAPED_LINE_SEPARATOR);
 
             List< ValueCode > tiposDocumentos = getTiposDocumentosRegistro();
             for(int i = 0; i < tiposDocumentos.size();i++)
@@ -268,7 +269,7 @@ public class ZendeskService {
 	 * 
 	 * @return {@link List}
 	 */
-    public List<ValueCode> getTiposDocumentosRegistro() {
+    public List< ValueCode > getTiposDocumentosRegistro() {
         return Arrays.asList( new ValueCode(), new ValueCode() ); // simulacion servicio externo
     }
 
